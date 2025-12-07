@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // ============================================
 // CUSTOMER-RELATED TYPE DEFINITIONS
 // ============================================
+
+import { RiskLevel } from "./database";
 
 // CSV upload mapping - tells us which CSV column maps to which DB field
 export type CsvColumnMapping = {
