@@ -3,9 +3,7 @@ import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/lib/db/turso";
 import { campaigns, campaignRecipients, customers } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendEmail } from "@/lib/email"; // ✅ Use Gmail
 
 export async function POST(
   request: NextRequest,
@@ -34,7 +32,7 @@ export async function POST(
 
     if (!campaign.subject || !campaign.content) {
       return NextResponse.json(
-        { error: "Campaign is missing subject or content" },
+        { error: "Campaign missing subject or content" },
         { status: 400 }
       );
     }
@@ -61,7 +59,7 @@ export async function POST(
       );
     }
 
-    // Create summary email for YOU
+    // Create summary for logged-in user
     const customerList = recipients
       .map((r, i) => `${i + 1}. ${r.customer.name} (${r.customer.email})`)
       .join("\n");
@@ -91,19 +89,17 @@ export async function POST(
       </html>
     `;
 
-     // Send summary to YOU with your Resend verified email
-     if (user.email) {
-      const { data, error } = await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL!,
-        to: "srinath2411.mani@gmail.com", // ✅ Your Resend signup email
-        subject: `✅ Campaign Sent: ${campaign.name}`,
-        html: summaryHTML,
-      });
-
-      if (error) {
+    // ✅ Send summary to logged-in user
+    if (user.email) {
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: `✅ Campaign Sent: ${campaign.name}`,
+          html: summaryHTML,
+        });
+        console.log("✅ Summary email sent to:", user.email);
+      } catch (error) {
         console.error("Failed to send summary email:", error);
-      } else {
-        console.log("✅ Summary email sent! ID:", data?.id);
       }
     }
 

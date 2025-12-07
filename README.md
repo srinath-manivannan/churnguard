@@ -14,7 +14,7 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [https://churnguard-3veb.vercel.app/](https://churnguard-3veb.vercel.app/) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
@@ -91,7 +91,7 @@ npm run db:test
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [https://churnguard-3veb.vercel.app/](https://churnguard-3veb.vercel.app/)
 
 ### Build for Production
 ```bash
@@ -126,7 +126,7 @@ churnguard/
 ## 🎯 Usage Guide
 
 ### 1. Register Account
-- Visit http://localhost:3000/register
+- Visit https://churnguard-3veb.vercel.app/register
 - Create your account
 
 ### 2. Upload Customer Data

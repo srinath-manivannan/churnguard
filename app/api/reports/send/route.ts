@@ -3,17 +3,7 @@ import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/lib/db/turso";
 import { customers, campaigns } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-// ✅ List of allowed emails (add as many as you want!)
-const ALLOWED_EMAILS = [
-  "srinath2411.mani@gmail.com",
-  "srinathmpro2001@gmail.com",
-  "priyadharshini.s@pyramidions.com",
-  // Add more emails here...
-];
+import { sendEmail } from "@/lib/email"; // ✅ Use Gmail instead of Resend
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,10 +11,12 @@ export async function POST(request: NextRequest) {
 
     if (!user.email) {
       return NextResponse.json(
-        { error: "User email not found. Please update your profile." },
+        { error: "User email not found" },
         { status: 400 }
       );
     }
+
+    console.log("📊 Generating report for:", user.email);
 
     // Get data
     const allCustomers = await db
@@ -89,7 +81,7 @@ export async function POST(request: NextRequest) {
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="http://localhost:3000/dashboard" 
+              <a href="https://churnguard-3veb.vercel.app/dashboard" 
                  style="display: inline-block; background: #3b82f6; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold;">
                 📊 View Dashboard
               </a>
@@ -104,51 +96,19 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    console.log("📧 Sending email to:", user.email);
-
-    // ✅ Check if email is in allowed list
-    if (!ALLOWED_EMAILS.includes(user.email)) {
-      return NextResponse.json(
-        { 
-          error: `Your email (${user.email}) is not authorized to receive reports. Please contact admin.`,
-          allowedEmails: ALLOWED_EMAILS,
-        },
-        { status: 403 }
-      );
-    }
-
-    // ✅ Send to logged-in user (if in allowed list)
-    const { data, error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL!,
-      to: user.email, // ✅ Will work for any email in ALLOWED_EMAILS
+    // ✅ Send via Gmail SMTP (works for ANY email!)
+    const result = await sendEmail({
+      to: user.email, // ✅ Whoever is logged in!
       subject: `📊 ChurnGuard Weekly Report - ${new Date().toLocaleDateString()}`,
       html: reportHTML,
     });
 
-    if (error) {
-      console.error("❌ Resend error:", error);
-      return NextResponse.json(
-        { 
-          error: "Failed to send email",
-          details: error.message || JSON.stringify(error),
-        },
-        { status: 500 }
-      );
-    }
-
-    if (!data || !data.id) {
-      return NextResponse.json(
-        { error: "Email send failed - no ID returned" },
-        { status: 500 }
-      );
-    }
-
-    console.log("✅ Email sent! ID:", data.id);
+    console.log("✅ Report sent successfully!");
 
     return NextResponse.json({
       success: true,
       message: `Report sent to ${user.email}`,
-      emailId: data.id,
+      messageId: result.messageId,
       stats: {
         totalCustomers,
         highRiskCount,
