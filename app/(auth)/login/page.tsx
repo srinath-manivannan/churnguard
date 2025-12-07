@@ -39,7 +39,6 @@ export default function LoginPage() {
         email,
         password,
         redirect: false, // Don't auto-redirect, we'll handle it
-        callbackUrl: "/dashboard", // ✅ Set callback URL
       });
 
       // Check if login failed
@@ -61,13 +60,9 @@ export default function LoginPage() {
         description: "Login successful",
       });
 
-      // ✅ FIXED: Use window.location.href instead of router.push
-      // This forces a full page reload and works better in production
-      window.location.href = "/dashboard";
-      
-      // OLD METHOD (doesn't work reliably in production):
-      // router.push("/dashboard");
-      // router.refresh();
+      // Redirect to dashboard
+      router.push("/dashboard");
+      router.refresh(); // Refresh server components
     } catch (error) {
       console.error("Login error:", error);
       toast({

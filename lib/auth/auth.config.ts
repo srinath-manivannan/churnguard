@@ -32,8 +32,9 @@ export const authOptions: NextAuthOptions = {
 
   // Pages configuration
   pages: {
-    signIn: "/login",
-    error: "/login",
+    signIn: "/login", // Custom login page
+    // signOut: "/login", // Redirect after logout
+    // error: "/login", // Error page
   },
 
   // Authentication providers
@@ -102,21 +103,9 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-
-    async redirect({ url, baseUrl }) {
-      // Allows relative callback URLs
-      if (url.startsWith("/")) {
-        return `${baseUrl}${url}`;
-      }
-      // Allows callback URLs on the same origin
-      else if (new URL(url).origin === baseUrl) {
-        return url;
-      }
-      return `${baseUrl}/dashboard`;
-    },
   },
 
-  // ✅ Secret for JWT encryption
+  // Secret for JWT encryption (from env)
   secret: process.env.NEXTAUTH_SECRET,
   
   // ✅ Enable debug in development only
