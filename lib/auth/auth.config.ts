@@ -24,8 +24,7 @@ export const authOptions: NextAuthOptions = {
   // Pages configuration - custom auth pages
   pages: {
     signIn: "/login", // Custom login page
-    // signOut: "/login", // Redirect after logout
-    // error: "/login", // Error page
+    error: "/login", // Redirect errors to login
   },
 
   // Authentication providers
@@ -106,6 +105,20 @@ export const authOptions: NextAuthOptions = {
         session.user.name = token.name as string;
       }
       return session;
+    },
+
+    // ✅ ADD THIS - Redirect callback for login/logout
+    async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) {
+        return url;
+      }
+      // Default redirect to dashboard after login
+      return `${baseUrl}/dashboard`;
     },
   },
 
