@@ -1,15 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  
-  webpack: (config) => {
-    config.resolve.fallback = { 
-      fs: false, 
-      net: false, 
-      tls: false 
-    };
-    return config;
+  // ✅ Add these for better production compatibility
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+  },
+  // ✅ Important for NextAuth
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
