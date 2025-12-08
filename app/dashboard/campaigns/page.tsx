@@ -27,9 +27,10 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Eye, RefreshCw, Send } from "lucide-react";
 import { formatDate, formatPercent } from "@/lib/utils";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 
 // ============================================
-// ADD RECIPIENTS MODAL COMPONENT
+// ADD RECIPIENTS MODAL COMPONENT (with search)
 // ============================================
 function AddRecipientsModal({
   campaignId,
@@ -42,11 +43,13 @@ function AddRecipientsModal({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(""); // 🔍 search inside modal
 
   useEffect(() => {
     if (open) {
       fetchCustomers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const fetchCustomers = async () => {
@@ -55,6 +58,7 @@ function AddRecipientsModal({
       const data = await res.json();
       setCustomers(data.customers || []);
     } catch (error) {
+      console.error("Failed to fetch customers:", error);
       toast.error("Failed to load customers");
     }
   };
@@ -82,11 +86,23 @@ function AddRecipientsModal({
         toast.error("Failed to add recipients");
       }
     } catch (error) {
+      console.error("Failed to add recipients:", error);
       toast.error("Failed to add recipients");
     } finally {
       setLoading(false);
     }
   };
+
+  // 🔍 Filter customers by name / email / riskLevel
+  const filteredCustomers = customers.filter((customer) => {
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.toLowerCase();
+    return (
+      customer.name?.toLowerCase().includes(q) ||
+      customer.email?.toLowerCase().includes(q) ||
+      customer.riskLevel?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -99,13 +115,27 @@ function AddRecipientsModal({
         <DialogHeader>
           <DialogTitle>Select Recipients</DialogTitle>
         </DialogHeader>
+
+        {/* 🔍 Search inside recipients modal */}
+        <div className="mb-3">
+          <Input
+            placeholder="Search by name, email, or risk..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
         <div className="space-y-4 max-h-96 overflow-y-auto">
           {customers.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No customers found. Add customers first.
             </div>
+          ) : filteredCustomers.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No recipients match your search.
+            </div>
           ) : (
-            customers.map((customer) => (
+            filteredCustomers.map((customer) => (
               <div
                 key={customer.id}
                 className="flex items-center space-x-3 p-3 border rounded hover:bg-gray-50"
@@ -115,10 +145,10 @@ function AddRecipientsModal({
                   checked={selectedIds.includes(customer.id)}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedIds([...selectedIds, customer.id]);
+                      setSelectedIds((prev) => [...prev, customer.id]);
                     } else {
-                      setSelectedIds(
-                        selectedIds.filter((id) => id !== customer.id)
+                      setSelectedIds((prev) =>
+                        prev.filter((id) => id !== customer.id)
                       );
                     }
                   }}
@@ -126,7 +156,9 @@ function AddRecipientsModal({
                 />
                 <div className="flex-1">
                   <div className="font-medium">{customer.name}</div>
-                  <div className="text-sm text-gray-500">{customer.email}</div>
+                  <div className="text-sm text-gray-500">
+                    {customer.email}
+                  </div>
                 </div>
                 {customer.riskLevel && (
                   <Badge
@@ -136,6 +168,7 @@ function AddRecipientsModal({
                         ? "destructive"
                         : "outline"
                     }
+                    className="capitalize"
                   >
                     {customer.riskLevel}
                   </Badge>
@@ -144,6 +177,7 @@ function AddRecipientsModal({
             ))
           )}
         </div>
+
         <div className="flex justify-between items-center pt-4 border-t">
           <div className="text-sm text-gray-600">
             {selectedIds.length} selected
@@ -172,6 +206,7 @@ export default function CampaignsPage() {
   const router = useRouter();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState(""); // 🔍 search on campaigns table
 
   // Fetch campaigns
   const fetchCampaigns = async () => {
@@ -196,7 +231,10 @@ export default function CampaignsPage() {
   }, []);
 
   // Send campaign
-  const handleSendCampaign = async (campaignId: string, campaignName: string) => {
+  const handleSendCampaign = async (
+    campaignId: string,
+    campaignName: string
+  ) => {
     if (!confirm(`Are you sure you want to send "${campaignName}"?`)) return;
 
     try {
@@ -213,6 +251,7 @@ export default function CampaignsPage() {
         toast.error(data.error || "Failed to send campaign");
       }
     } catch (error) {
+      console.error("Failed to send campaign:", error);
       toast.error("Failed to send campaign");
     }
   };
@@ -236,10 +275,21 @@ export default function CampaignsPage() {
     }
   };
 
+  // 🔍 Filter campaigns by search (name, type, status)
+  const filteredCampaigns = campaigns.filter((campaign) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      campaign.name?.toLowerCase().includes(q) ||
+      campaign.type?.toLowerCase().includes(q) ||
+      campaign.status?.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Campaigns</h1>
           <p className="text-gray-500 mt-1">
@@ -247,7 +297,15 @@ export default function CampaignsPage() {
           </p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {/* 🔍 Search box for campaigns */}
+          <Input
+            placeholder="Search by name, type, or status..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-64"
+          />
+
           <Button variant="outline" onClick={fetchCampaigns} disabled={loading}>
             <RefreshCw
               className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
@@ -298,8 +356,16 @@ export default function CampaignsPage() {
                     </Button>
                   </TableCell>
                 </TableRow>
+              ) : filteredCampaigns.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-8">
+                    <p className="text-gray-500">
+                      No campaigns match your search.
+                    </p>
+                  </TableCell>
+                </TableRow>
               ) : (
-                campaigns.map((campaign) => {
+                filteredCampaigns.map((campaign) => {
                   const openRate =
                     campaign.sentCount > 0
                       ? (campaign.openedCount / campaign.sentCount) * 100
@@ -323,9 +389,7 @@ export default function CampaignsPage() {
                         </Badge>
                       </TableCell>
 
-                      <TableCell>
-                        {campaign.recipientCount || 0}
-                      </TableCell>
+                      <TableCell>{campaign.recipientCount || 0}</TableCell>
 
                       <TableCell>{campaign.sentCount || 0}</TableCell>
 
@@ -355,13 +419,16 @@ export default function CampaignsPage() {
                             campaignId={campaign.id}
                             onRecipientsAdded={fetchCampaigns}
                           />
-                          
+
                           {campaign.status === "draft" && (
                             <Button
                               variant="default"
                               size="sm"
                               onClick={() =>
-                                handleSendCampaign(campaign.id, campaign.name)
+                                handleSendCampaign(
+                                  campaign.id,
+                                  campaign.name
+                                )
                               }
                             >
                               <Send className="h-4 w-4 mr-1" />
@@ -373,7 +440,9 @@ export default function CampaignsPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                              router.push(`/dashboard/campaigns/${campaign.id}`)
+                              router.push(
+                                `/dashboard/campaigns/${campaign.id}`
+                              )
                             }
                           >
                             <Eye className="h-4 w-4" />

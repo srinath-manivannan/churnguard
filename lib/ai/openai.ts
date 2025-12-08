@@ -1,33 +1,100 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // ============================================
-// GOOGLE GEMINI AI INTEGRATION
+// OPENAI INTEGRATION (replaces Gemini)
 // ============================================
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+if (!process.env.OPENAI_API_KEY) {
+  console.warn("⚠️ OPENAI_API_KEY is not set in .env.local");
+}
 
-// ============================================
-// TEXT & VISION MODELS (GEMINI 2.5 FLASH)
-// ============================================
-
-export const textModel = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
-  generationConfig: {
-    temperature: 0.7,
-    maxOutputTokens: 2048,
-  },
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
-export const visionModel = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
-  generationConfig: {
+// ============================================
+// Internal helper: get text from chat completion
+// ============================================
+function getTextFromCompletion(completion: any): string {
+  const msg = completion?.choices?.[0]?.message;
+  if (!msg) return "";
+
+  const content = msg.content;
+
+  if (typeof content === "string") return content;
+
+  if (Array.isArray(content)) {
+    return content
+      .map((part: any) => {
+        if (typeof part === "string") return part;
+        if (part?.type === "text" && typeof part.text === "string") {
+          return part.text;
+        }
+        return "";
+      })
+      .join("");
+  }
+
+  return "";
+}
+
+// ============================================
+// Internal helper: text-only generation
+// ============================================
+async function generateText(prompt: string): Promise<string> {
+  const completion = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
     temperature: 0.4,
-    maxOutputTokens: 2048,
-  },
-});
+  });
+
+  return getTextFromCompletion(completion).trim();
+}
 
 // ============================================
-// CHATBOT FUNCTION (NO MORE EMPTY RESPONSE ERROR)
+// Internal helper: vision (image + text) → JSON
+// ============================================
+async function generateVisionJSON(
+  prompt: string,
+  imageBase64: string,
+  mimeType: string
+): Promise<any> {
+  const completion = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${imageBase64}`,
+            },
+          },
+        ],
+      },
+    ],
+    temperature: 0.2,
+  });
+
+  const rawText = getTextFromCompletion(completion);
+
+  const cleaned = (rawText || "")
+    .replace(/```json\n?/g, "")
+    .replace(/```/g, "")
+    .trim();
+
+  return JSON.parse(cleaned);
+}
+
+// ============================================
+// CHATBOT FUNCTION (ChurnGuard AI) – OpenAI
 // ============================================
 export async function chatbotResponse(
   userMessage: string,
@@ -107,26 +174,17 @@ Give a clear, structured answer with:
 Do NOT mention missing data or limitations.
 `;
 
-    const result = await textModel.generateContent(prompt);
-    const response =
-      (result as any)?.response?.text?.() ??
-      (result as any)?.response?.candidates?.[0]?.content?.parts
-        ?.map((p: any) => p.text || "")
-        .join("") ??
-      "";
+    const text = await generateText(prompt);
+    const trimmed = (text || "").trim();
 
-    const trimmed = (response || "").trim();
-
-    // ❗ IMPORTANT: NO THROW HERE
     if (!trimmed) {
-      console.warn("Gemini returned empty response, using fallback summary.");
+      console.warn("OpenAI returned empty response, using fallback summary.");
       return fallbackSummary(customerContext);
     }
 
     return trimmed;
-  } catch (error: any) {
-    console.error("Gemini chatbot error:", error);
-    // Also return a safe fallback instead of throwing
+  } catch (error) {
+    console.error("OpenAI chatbot error:", error);
     return (
       fallbackSummary(customerContext) +
       `\n\n(I had trouble contacting the AI model just now, so I generated this summary from your data instead.)`
@@ -135,7 +193,7 @@ Do NOT mention missing data or limitations.
 }
 
 // ============================================
-// CHURN ANALYSIS
+// CHURN ANALYSIS (JSON) – OpenAI
 // ============================================
 export async function analyzeChurnRisk(customers: any[]) {
   try {
@@ -144,7 +202,7 @@ export async function analyzeChurnRisk(customers: any[]) {
 Customers to analyze:
 ${JSON.stringify(customers, null, 2)}
 
-Return ONLY valid JSON (no markdown, no explanation), in this exact format:
+Return ONLY valid JSON array in this exact format:
 [
   {
     "customerId": "id",
@@ -155,22 +213,56 @@ Return ONLY valid JSON (no markdown, no explanation), in this exact format:
   }
 ]`;
 
-    const result = await textModel.generateContent(prompt);
-    const response = result.response.text();
-    const cleanedResponse = response
+    const responseText = await generateText(prompt);
+    const cleaned = responseText
       .replace(/```json\n?/g, "")
-      .replace(/```\n?/g, "")
+      .replace(/```/g, "")
       .trim();
-    const analysis = JSON.parse(cleanedResponse);
-    return analysis;
+
+    return JSON.parse(cleaned);
   } catch (error) {
-    console.error("Churn analysis error:", error);
-    throw new Error("Failed to analyze churn risk");
+    console.error("Churn analysis error (OpenAI):", error);
+
+    // simple non-AI fallback
+    return customers.map((c: any) => {
+      const daysInactive = c.daysInactive ?? 0;
+      const revenue = c.totalRevenue ?? c.total_revenue ?? 0;
+
+      let riskLevel = "low";
+      let churnScore = 10;
+
+      if (daysInactive >= 60 || revenue === 0) {
+        riskLevel = "high";
+        churnScore = 80;
+      } else if (daysInactive >= 30) {
+        riskLevel = "medium";
+        churnScore = 50;
+      }
+
+      return {
+        customerId: c.id ?? c.customerId ?? String(c._id ?? ""),
+        churnScore,
+        riskLevel,
+        riskFactors: [
+          daysInactive >= 60
+            ? "very long inactivity"
+            : daysInactive >= 30
+            ? "30+ days inactive"
+            : "recently active",
+        ],
+        recommendedAction:
+          riskLevel === "high"
+            ? "Immediate CSM call + retention offer"
+            : riskLevel === "medium"
+            ? "Send re-engagement email sequence"
+            : "Normal engagement campaigns",
+      };
+    });
   }
 }
 
 // ============================================
-// PERSONALIZE EMAIL
+// PERSONALIZE EMAIL – OpenAI
 // ============================================
 export async function personalizeEmail(template: string, customer: any) {
   try {
@@ -185,21 +277,22 @@ Email template:
 ${template}
 
 Return ONLY the final personalized email text.`;
-    const result = await textModel.generateContent(prompt);
-    return result.response.text().trim();
+
+    const text = await generateText(prompt);
+    return text.trim();
   } catch (error) {
-    console.error("Email error:", error);
+    console.error("Email personalization error (OpenAI):", error);
     throw new Error("Failed to personalize email");
   }
 }
 
 // ============================================
-// IMAGE ANALYSIS
+// IMAGE ANALYSIS – OpenAI Vision (via chat.completions)
 // ============================================
 export async function analyzeImage(imageData: string, mimeType: string) {
   try {
     const prompt = `Analyze this marketing/customer-related image.
-Return ONLY JSON (no markdown), in this format:
+Return ONLY JSON (no markdown), in this exact format:
 {
   "peopleCount": 0,
   "engagementLevel": "low" | "medium" | "high",
@@ -208,24 +301,17 @@ Return ONLY JSON (no markdown), in this format:
   "insights": [],
   "recommendations": []
 }`;
-    const result = await visionModel.generateContent([
-      prompt,
-      { inlineData: { mimeType, data: imageData } },
-    ]);
-    const response = result.response.text();
-    const cleaned = response
-      .replace(/```json\n?/g, "")
-      .replace(/```\n?/g, "")
-      .trim();
-    return JSON.parse(cleaned);
-  } catch (error) {
-    console.error("Image error:", error);
+
+    const json = await generateVisionJSON(prompt, imageData, mimeType);
+    return json;
+  } catch (error: any) {
+    console.error("Image analysis error (OpenAI):", error);
     throw new Error("Failed to analyze image");
   }
 }
 
 // ============================================
-// GENERATE REPORT (HTML)
+// GENERATE REPORT (HTML) – OpenAI
 // ============================================
 export async function generateReport(reportData: any) {
   try {
@@ -233,22 +319,23 @@ export async function generateReport(reportData: any) {
 
 ${JSON.stringify(reportData, null, 2)}
 
-Return HTML only (no markdown).`;
-    const result = await textModel.generateContent(prompt);
-    let html = result.response.text()
+Return FULL HTML only (no markdown).`;
+
+    const htmlText = await generateText(prompt);
+    let html = htmlText
       .replace(/```html\n?/g, "")
-      .replace(/```\n?/g, "")
+      .replace(/```/g, "")
       .trim();
     if (!html.startsWith("<!DOCTYPE")) html = `<!DOCTYPE html>\n${html}`;
     return html;
   } catch (error) {
-    console.error("Report error:", error);
+    console.error("Report error (OpenAI):", error);
     throw new Error("Failed to generate report");
   }
 }
 
 // ============================================
-// EMBEDDINGS (DISABLED)
+// EMBEDDINGS (disabled)
 // ============================================
 export async function createEmbedding(_text: string): Promise<number[]> {
   throw new Error("Embeddings disabled");

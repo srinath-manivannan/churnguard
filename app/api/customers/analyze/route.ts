@@ -7,7 +7,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
 import { getCustomers, updateCustomerChurnScore } from "@/lib/db/queries";
-import { analyzeChurnRisk } from "@/lib/ai/gemini";
+import { analyzeChurnRisk } from "@/lib/ai/openai";
+// import { analyzeChurnRisk } from "@/lib/ai/gemini";
 
 // ============================================
 // POST - Analyze churn risk for all customers

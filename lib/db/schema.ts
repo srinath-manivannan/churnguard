@@ -23,6 +23,18 @@ export const users = sqliteTable("users", {
     .notNull()
     .default(sql`(unixepoch())`),
 });
+export const googleTokens = sqliteTable("google_tokens", {
+  userId: text("user_id").primaryKey(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token"),
+  scope: text("scope"),
+  tokenType: text("token_type"),
+  expiryDate: integer("expiry_date", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }),
+  updatedAt: integer("updated_at", { mode: "timestamp" }),
+});
+
+
 
 // ============================================
 // CUSTOMERS TABLE

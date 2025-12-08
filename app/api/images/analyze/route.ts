@@ -1,16 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // ============================================
 // IMAGE ANALYSIS API
+// POST /api/images/analyze - Analyze image with OpenAI Vision
 // ============================================
-// POST /api/images/analyze - Analyze image with Gemini Vision
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
-import { analyzeImage } from "@/lib/ai/gemini";
+import { analyzeImage } from "@/lib/ai/openai";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await requireAuth();
+    const user = await requireAuth(); // keep auth
     const body = await request.json();
 
     const { imageData, mimeType, filename } = body;
@@ -22,18 +25,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Analyze image with Gemini Vision
+    // Analyze image with OpenAI Vision
     const analysis = await analyzeImage(imageData, mimeType);
 
     return NextResponse.json({
       success: true,
       analysis,
+      filename: filename ?? null,
+      userId: user.id,
     });
   } catch (error: any) {
     console.error("Image analysis error:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to analyze image" },
-      { status: 500 }
-    );
+
+    const status =
+      typeof error?.status === "number" && error.status >= 400
+        ? error.status
+        : 500;
+
+    const message = error?.message || "Failed to analyze image";
+
+    return NextResponse.json({ error: message }, { status });
   }
 }

@@ -7,10 +7,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
 import { getDashboardStats } from "@/lib/db/queries";
-import { generateReport } from "@/lib/ai/gemini";
+// import { generateReport } from "@/lib/ai/gemini";
 import { db } from "@/lib/db/turso";
 import { reports } from "@/lib/db/schema";
 import { Resend } from "resend";
+import { generateReport } from "@/lib/ai/openai";
 
 // Initialize Resend
 const resend = new Resend(process.env.RESEND_API_KEY);
