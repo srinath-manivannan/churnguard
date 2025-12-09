@@ -52,7 +52,7 @@ const navItems = [
     icon: Image,
   },
   {
-    title: "Reports",
+    title: "Analytics",
     href: "/dashboard/reports",
     icon: FileText,
   },

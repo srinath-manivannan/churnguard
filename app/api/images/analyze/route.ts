@@ -6,7 +6,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
-import { analyzeImage } from "@/lib/ai/openai";
+// import { analyzeImage } from "@/lib/ai/openai";
+import { analyzeImage } from "@/lib/ai/hybrid";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

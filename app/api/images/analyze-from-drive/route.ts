@@ -32,7 +32,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth/session";
 import { getUserDriveToken } from "@/lib/google/drive";
-import { analyzeImage } from "@/lib/ai/openai";
+// import { analyzeImage } from "@/lib/ai/openai";
+import { analyzeImage } from "@/lib/ai/hybrid";
 // import { analyzeImage } from "@/lib/ai/gemini";
 // import { analyzeImage } from "@/lib/ai/openai";
 

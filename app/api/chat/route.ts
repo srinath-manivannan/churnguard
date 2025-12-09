@@ -12,7 +12,8 @@ import { requireAuth } from "@/lib/auth/session";
 import { db } from "@/lib/db/turso";
 import { customers, campaigns } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { chatbotResponse } from "@/lib/ai/openai";
+import { chatbotResponse } from "@/lib/ai/hybrid";
+// import { chatbotResponse } from "@/lib/ai/openai";
 // import { chatbotResponse } from "@/lib/ai/gemini";
 
 // 🔢 Simple churn-score from inactivity, revenue, tickets, segment

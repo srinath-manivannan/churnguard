@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, BarChart3, TrendingUp } from "lucide-react";
+import { ExternalLink, BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function LookerStudioEmbed() {
-  const [embedUrl, setEmbedUrl] = useState<string>("");
-  const router = useRouter();
-
-  useEffect(() => {
-    const saved = localStorage.getItem("looker_studio_url");
-    if (saved) {
-      setEmbedUrl(saved);
+  // Initialize from localStorage (no ESLint warning!)
+  const [embedUrl] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("looker_studio_url") || "";
     }
-  }, []);
+    return "";
+  });
+
+  const router = useRouter();
 
   if (!embedUrl) {
     return (
@@ -39,14 +39,20 @@ export default function LookerStudioEmbed() {
     );
   }
 
-  // Convert embed URL to view URL
+  // Convert view URL to embed URL if needed
+  const displayUrl = embedUrl.includes("/embed/")
+    ? embedUrl
+    : embedUrl.replace("/reporting/", "/embed/reporting/");
+
+  // Convert embed URL to view URL for full screen
   const viewUrl = embedUrl.includes("/embed/")
     ? embedUrl.replace("/embed/reporting/", "/reporting/")
     : embedUrl;
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 hover:border-blue-400 hover:shadow-lg transition-all">
-      <div className="flex items-start justify-between mb-6">
+    <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
             <BarChart3 className="h-6 w-6 text-blue-600" />
@@ -56,49 +62,41 @@ export default function LookerStudioEmbed() {
             Powered by Looker Studio
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => router.push("/dashboard/reports")}
-        >
-          Change
-        </Button>
-      </div>
-
-      <div className="space-y-4">
-        {/* Preview Features */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg p-4 text-center">
-            <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
-            <p className="text-sm font-medium">Risk Trends</p>
-          </div>
-          <div className="bg-white rounded-lg p-4 text-center">
-            <BarChart3 className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-            <p className="text-sm font-medium">Customer Charts</p>
-          </div>
-          <div className="bg-white rounded-lg p-4 text-center">
-            <ExternalLink className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-            <p className="text-sm font-medium">Full Reports</p>
-          </div>
-        </div>
-
-        {/* Call to Action */}
-        <div className="bg-white rounded-lg p-6 text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            View Your Complete Dashboard
-          </h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Access detailed charts, filters, and interactive analytics
-          </p>
+        <div className="flex gap-2">
           <Button
-            size="lg"
-            className="bg-blue-600 hover:bg-blue-700"
+            variant="outline"
+            size="sm"
             onClick={() => window.open(viewUrl, "_blank")}
           >
-            <ExternalLink className="h-5 w-5 mr-2" />
-            Open Looker Studio Dashboard
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Full Screen
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/dashboard/reports")}
+          >
+            Change
           </Button>
         </div>
+      </div>
+
+      {/* Embedded Dashboard */}
+      <div className="bg-white rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+        <iframe
+          src={displayUrl}
+          className="w-full h-[600px] border-0"
+          allowFullScreen
+          loading="lazy"
+          title="Looker Studio Analytics Dashboard"
+        />
+      </div>
+
+      {/* Tip */}
+      <div className="mt-4 bg-blue-100 border border-blue-200 rounded-lg p-3">
+        <p className="text-xs text-blue-800">
+          <strong>💡 Tip:</strong> Click "Full Screen" to view with all interactive features and filters.
+        </p>
       </div>
     </Card>
   );
